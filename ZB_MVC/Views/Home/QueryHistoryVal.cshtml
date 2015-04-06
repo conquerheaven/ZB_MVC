@@ -1,0 +1,283 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>测点管理</title>
+    <link href="@Url.Content("~/Content/themes/layout.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/styles.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery-1.5.1.min.js")" type="text/javascript"></script>
+
+    <link href="@Url.Content("~/Content/themes/base/jquery-ui.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/base/jquery.ui.datepicker.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/form.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/Pager.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/tab.css")" rel="stylesheet" type="text/css" />
+    <link href="@Url.Content("~/Content/themes/datepicker/jquery_ui_timepicker_addon.css")" rel="stylesheet" type="text/css" />
+    <script src="@Url.Content("~/Scripts/jquery.ui.datepicker-zh-CN.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui-1.8.11.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.tmpl.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.pager.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery-ui-timepicker-addon.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/jquery.validate.min.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/util.js")" type="text/javascript"></script>
+    <script src="@Url.Content("~/Scripts/Visifire.js")" type="text/javascript"></script>
+</head>
+<body>
+<div class="contentcontainer">
+<div class="headings altheading"><h2>测点管理</h2></div>
+<div class="contentbox">
+    <div id="tabs">
+        <ul class="tab-ul">
+		    <li><a href="@Url.Action("QueryPoint", "Home")">查询测点</a></li>
+            <li><a href="@Url.Action("AddRealPoint", "Home")">增加真实测点</a></li>
+            <li><a href="@Url.Action("AddVirtualPoint", "Home")">增加虚拟测点</a></li>
+            <li><a href="@Url.Action("ExchangePoint", "Home")">更换电表</a></li>
+            <li class="current"><a>查询测点历史</a></li>
+	    </ul>
+	    <div class="tab-div">
+@if (ViewData["analogNo"] != null && ViewData["analogName"] != null)
+{ 
+        <form id="myForm" action="#" method="post" >
+        <ul class="em-form-ul">
+            <li>
+                <ul>
+                    <li>测点编号：</li>
+                    <li><input id="pointID" name="pointID" type="text" class="inputbox inputbox-readonly" value="@ViewData["analogNo"]" readonly="readonly"/></li>
+                    <li></li>
+                </ul>
+                <ul>
+                    <li>测点名称：</li>
+                    <li><input id="pointName" name="pointName" type="text" class="inputbox inputbox-readonly" value="@ViewData["analogName"]" readonly="readonly"/></li>
+                    <li></li>
+                </ul>
+                <div class="clear"></div>
+            </li>
+            <li>
+                <ul>
+                    <li><span class="red">* </span>起始时间：</li>
+                    <li><input id="startTime" name="startTime" type="text" class="inputbox"/></li>
+                    <li></li>
+                </ul>
+                <ul>
+                    <li><span class="red">* </span>结束时间：</li>
+                    <li><input id="endTime" name="endTime" type="text" class="inputbox"/></li>
+                    <li></li>
+                </ul>
+                <div class="clear"></div>
+            </li>
+            <li>
+                <ul>
+                    <li>显示方式：</li>
+                    <li>
+                        <div id="displayType">
+                            <input type="radio" id="column" name="displayRadio" value="column" checked="checked" /><label for="column"> 柱状图 </label>
+                            <input type="radio" id="list" name="displayRadio" value="list" /><label for="list"> 一览表 </label>
+                        </div>
+                    </li>
+                    <li></li>
+                </ul>
+                <div class="clear"></div>
+            </li>
+            <li>
+                <input id="queryButton"  type="submit" value=" 查 询 " class="btn m-button"/>&nbsp;&nbsp;&nbsp;
+                <input id="modifyButton" type="button" value=" 修改该时间段内的历史值" class="btn"/>
+                <input id="deleteAllButton" type="button" value=" 批量删除 " class="btn" />
+            </li>
+        </ul>
+        </form>
+
+        <fieldset id="resultDiv" class="hidden">
+            <legend>查询结果</legend>
+            <div id="dataDiv">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>获取时间</th>
+                            <th>历史值</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultDataDiv">
+                    </tbody>
+                </table>
+                <div id="pager"></div>
+            </div>
+            <div id="chartDataDiv" class="hidden">
+            </div>
+            <div id="noDataDiv">当前查询范围没有数据</div>
+        </fieldset>
+        <input type="hidden" id="selectAnalogId" value="@ViewData["analogNo"]" />
+}
+</div></div>
+</div></div>
+<script type="text/javascript">
+    $(function () {
+        var global_totalPages = -1;
+        $("#displayType").buttonset();
+        $("#startTime").datetimepicker();
+        $("#endTime").datetimepicker();
+        $("#deleteAllButton").buttonset();
+        $("#startTime").change(function () {
+            $("#resultDiv").slideUp("fast");
+            $("#dataDiv").hide();
+            $("#chartDataDiv").hide();
+            $("#noDataDiv").hide();
+        });
+        $("#endTime").change(function () {
+            $("#resultDiv").slideUp("fast");
+            $("#dataDiv").hide();
+            $("#chartDataDiv").hide();
+        });
+        $("input[name='displayRadio']").change(function () {
+            $("#resultDiv").slideUp("fast");
+            $("#dataDiv").hide();
+            $("#chartDataDiv").hide();
+            $("#noDataDiv").hide();
+        });
+        $("#myForm").validate({
+            rules: {
+                startTime: {
+                    required: true
+                },
+                endTime: {
+                    required: true
+                }
+            },
+            messages: {
+                startTime: {
+                    required: "起始时间不能为空"
+                },
+                endTime: {
+                    required: "结束时间不能为空"
+                }
+            },
+            errorPlacement: function (error, element) {
+                error.appendTo(element.parent().next());
+            },
+            submitHandler: function (form) {
+                if (Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + "00") > Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + "00")) {
+                    $("#endTime").parent().next().html('<label class="error" for="startTime" generated="true">结束时间不能大于开始时间</label>');
+                    return false;
+                }
+                if (!$("#resultDiv").is(":visible")) {
+                    var displayType = $("input[name='displayRadio']:checked").val();
+                    if (displayType == "list") {
+                        global_totalPages = -1;
+                        pageClick(1);
+                    }
+                    else {
+                        query();
+                    }
+                }
+                return false;
+            },
+            onkeyup: false,
+            onfocusout: false,
+            onclick: false
+        });
+
+        function pageClick(pageIndex) {
+            var loadingImg = $('<img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" />');
+            $("#dataDiv").hide();
+            $("#noDataDiv").html(loadingImg).show();
+            $("#resultDiv").slideDown("fast");
+            $.getJSON('@Url.Action("QueryEnergyHistoryAjax", "Home")', {
+                currentPage: pageIndex,
+                totalPages: global_totalPages,
+                analogNo: $("#pointID").val(),
+                startTime: $("#startTime").val(),
+                endTime: $("#endTime").val()
+            }, function (jsonData) {
+                if (jsonData == null) {
+                    $("#dataDiv").hide();
+                    $("#noDataDiv").html("请刷新重试！").show();
+                    return;
+                }
+                if (global_totalPages = -1) {
+                    global_totalPages = jsonData.totalPages;
+                }
+                if (global_totalPages < 1) {
+                    $("#noDataDiv").html("当前查询范围没有数据");
+                    $("#dataDiv").hide();
+                    $("#noDataDiv").show();
+                    return;
+                }
+                $("#noDataDiv").hide();
+                $("#resultDataDiv").html("");
+                $("#pager").pager({ pagenumber: pageIndex, pagecount: global_totalPages, buttonClickCallback: pageClick });
+                $("#dataTemplate").tmpl(jsonData.data, {
+                    alternate: function (item) {
+                        return ($.inArray(item, jsonData.data) % 2) ? "alt" : "";
+                    }
+                }).appendTo("#resultDataDiv");
+                $("#dataDiv").show();
+            });
+        }
+        var statisChart = new Visifire("../../Content/sl/SL.Visifire.Charts.xap", "StatisticsChart", 700, 500, "White");
+        function query() {
+            var loadingImg = $('<img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" />');
+            $("#dataDiv").hide();
+            $("#chartDataDiv").hide();
+            $("#noDataDiv").html(loadingImg).show();
+            $("#resultDiv").slideDown("fast");
+            $.getJSON('@Url.Action("QueryAllEnergyHistoryAjax", "Home")', {
+                analogNo: $("#pointID").val(),
+                startTime: $("#startTime").val(),
+                endTime: $("#endTime").val()
+            }, function (jsonData) {
+                if (jsonData == null) {
+                    $("#dataDiv").hide();
+                    $("#noDataDiv").html("请刷新重试！").show();
+                    return;
+                }
+                if (jsonData.data.length == 0) {
+                    $("#noDataDiv").html("当前查询范围没有数据").show();
+                    $("#dataDiv").hide();
+                    return;
+                }
+                var xmlStr = util_templateToChartXml("chartTemplate", jsonData);
+                statisChart.setDataXml(xmlStr);
+                $("#dataDiv").hide();
+                $("#noDataDiv").hide();
+                $("#chartDataDiv").show();
+                statisChart.render("chartDataDiv");
+            });
+        }
+    });
+</script>
+<script id="dataTemplate" type="text/x-jQuery-tmpl">
+    <tr class="${$item.alternate($data)}"><td>${Time}</td><td>${ValStr}</td>
+    <td><a onclick="modifyVal('${RealTimeLong}')" href="javascript:void(0)">修改</a> 
+    <a onclick="deleteVal('${RealTimeLong}')" href="javascript:void(0)">删除</a></td></tr>
+</script>
+<script id="chartTemplate" type="text/x-jQuery-tmpl">
+	<vc:Chart xmlns:vc="clr-namespace:Visifire.Charts;assembly=SLVisifire.Charts" Bevel="True" AnimatedUpdate="True" View3D="False" IndicatorEnabled="True" 
+    ZoomingEnabled="True" AnimationEnabled="true" Width="700" Height="500" Theme="Theme1" 
+    BorderThickness="1" BorderBrush="Gray" ToolBarEnabled="True" ShadowEnabled="True">
+        <vc:Chart.Titles>
+            <vc:Title Text="测点历史值" Padding="0,0,0,5"/>
+        </vc:Chart.Titles>
+        <vc:Chart.AxesX>
+            <vc:Axis Title="时间"/>
+        </vc:Chart.AxesX>
+        <vc:Chart.AxesY>
+            <vc:Axis StartFromZero="False" Title="表值"/>
+        </vc:Chart.AxesY>
+        <vc:Chart.Series>
+        <vc:DataSeries RenderAs="Column">
+            <vc:DataSeries.DataPoints>
+                {{each data}}
+                    <vc:DataPoint AxisXLabel="${Time}" YValue="${ValStr}"/>
+                {{/each}}
+            </vc:DataSeries.DataPoints>
+        </vc:DataSeries>
+        </vc:Chart.Series>
+    </vc:Chart>
+</script>
+</body>
+</html>
