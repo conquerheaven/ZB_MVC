@@ -2,6 +2,6 @@ C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\bin\ZB_MVC.dll
 C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\bin\ZB_MVC.pdb
 C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\bin\EntityFramework.dll
 C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\bin\EntityFramework.xml
-C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\obj\Debug\ResolveAssemblyReference.cache
 C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\obj\Debug\ZB_MVC.dll
 C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\obj\Debug\ZB_MVC.pdb
+C:\Users\admin\Desktop\ZB_MVC\ZB_MVC\obj\Debug\ZB_MVC.csprojResolveAssemblyReference.cache

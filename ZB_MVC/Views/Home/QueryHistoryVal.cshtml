@@ -36,7 +36,6 @@
 		    <li><a href="@Url.Action("QueryPoint", "Home")">查询测点</a></li>
             <li><a href="@Url.Action("AddRealPoint", "Home")">增加真实测点</a></li>
             <li><a href="@Url.Action("AddVirtualPoint", "Home")">增加虚拟测点</a></li>
-            <li><a href="@Url.Action("ExchangePoint", "Home")">更换电表</a></li>
             <li class="current"><a>查询测点历史</a></li>
 	    </ul>
 	    <div class="tab-div">
@@ -85,6 +84,7 @@
             </li>
             <li>
                 <input id="queryButton"  type="submit" value=" 查 询 " class="btn m-button"/>&nbsp;&nbsp;&nbsp;
+                <input id="addButton" type="button" value=" 添加新值 " class="btn"/>
                 <input id="modifyButton" type="button" value=" 修改该时间段内的历史值" class="btn"/>
                 <input id="deleteAllButton" type="button" value=" 批量删除 " class="btn" />
             </li>
@@ -115,12 +115,38 @@
 }
 </div></div>
 </div></div>
+<div id="newValDiv" title="添加该测点新的历史值" class="hidden">
+    <fieldset>
+        <label for="timeInput">添加时间：</label>
+        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="timeInput" name="timeInput"/>
+        <p id="newValTip" class="hidden a-center"></p>
+        <label for="newValue">添加值：</label>
+        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="newValue" name="newValue" disabled="disabled"/>
+        <p id="newValErrorTip" class="red a-center hidden"></p>
+    </fieldset>
+</div>
+<div id="modifyValByTimePeriod" title="修改该时间段内的所有历史值" class="hidden">
+    <fieldset>
+        <label for="increaseValue">您可以给该时间段内的所有历史值增加或减小一定数值（负数代表减少）</label>
+        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="increaseValue" name="increaseValue"/>
+        <p id="increaseValueTip" class="hidden a-center"></p>
+    </fieldset>
+</div>
+<div id="modifyValDiv" title="修改该测点指定时刻的历史值" class="hidden">
+    <p id="modifyValTip" class="a-center hidden"></p>
+    <label for="modifyValInput">修改值为：</label>
+    <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="modifyValInput" name="newValInput"/>
+    <p id="modifyValErrorTip" class="red a-center hidden"></p>
+</div>
 <script type="text/javascript">
+    var isModified = false; //******************************测点数值是否发生改变
+    var minTime = new Date().setf;///************保存被修改的最早的实践点****************/////////////////////
     $(function () {
         var global_totalPages = -1;
         $("#displayType").buttonset();
         $("#startTime").datetimepicker();
         $("#endTime").datetimepicker();
+        $("#timeInput").datetimepicker();
         $("#deleteAllButton").buttonset();
         $("#startTime").change(function () {
             $("#resultDiv").slideUp("fast");
@@ -139,6 +165,7 @@
             $("#chartDataDiv").hide();
             $("#noDataDiv").hide();
         });
+        //////////////////////////查询/////////////////////////////////////
         $("#myForm").validate({
             rules: {
                 startTime: {
@@ -160,8 +187,14 @@
                 error.appendTo(element.parent().next());
             },
             submitHandler: function (form) {
-                if (Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + "00") > Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + "00")) {
+                var timeLength = Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + "00") - Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + "00");
+
+                if (timeLength < 0) {
                     $("#endTime").parent().next().html('<label class="error" for="startTime" generated="true">结束时间不能大于开始时间</label>');
+                    return false;
+                }
+                if (timeLength > 2 * 30 * 24 * 60 * 60 * 1000) {
+                    $("#endTime").parent().next().html('<label class="error" for="startTime" generated="true">查询时间间隔不能超过60天！请重新选择时间！</label>');
                     return false;
                 }
                 if (!$("#resultDiv").is(":visible")) {
@@ -180,7 +213,7 @@
             onfocusout: false,
             onclick: false
         });
-
+        //////////////////一览表////////////////////////////
         function pageClick(pageIndex) {
             var loadingImg = $('<img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" />');
             $("#dataDiv").hide();
@@ -198,7 +231,7 @@
                     $("#noDataDiv").html("请刷新重试！").show();
                     return;
                 }
-                if (global_totalPages = -1) {
+                if (global_totalPages == -1) {
                     global_totalPages = jsonData.totalPages;
                 }
                 if (global_totalPages < 1) {
@@ -218,6 +251,7 @@
                 $("#dataDiv").show();
             });
         }
+        ////////////////////////////柱状图////////////////////////////////////
         var statisChart = new Visifire("../../Content/sl/SL.Visifire.Charts.xap", "StatisticsChart", 700, 500, "White");
         function query() {
             var loadingImg = $('<img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" />');
@@ -248,7 +282,344 @@
                 statisChart.render("chartDataDiv");
             });
         }
+        //////////////////添加新值/////////////////////////////////////
+        $("#timeInput").change(function () {
+            var selectedDateTime = $.trim($(this).val());
+            if (selectedDateTime == "") {
+                return;
+            }
+            $.getJSON('@Url.Action("QueryValRange", "Home")', {
+                analogId: $("#selectAnalogId").val(),
+                inputDateTime: selectedDateTime
+            }, function (data) {
+                if (data == null) {
+                    $("#dataDiv").hide();
+                    $("#newValErrorTip").html("请刷新重试！").slideDown("fast");
+                    return;
+                }
+                if ($.isEmptyObject(data)) {
+                    $("#newValErrorTip").html("该时刻已存在值，请重新输入时间").slideDown("fast");
+                } else {
+                    $("#valMinRange").val(data.min);
+                    $("#valMaxRange").val(data.max);
+                    if (data.min != "" || data.max != "") {
+                        var str = "";
+                        if (data.min != "") {
+                            str = "添加值需大于 " + data.min;
+                        }
+                        if (data.max != "") {
+                            if (str != "") {
+                                str += (" 并且小于 " + data.max);
+                            } else {
+                                str = "添加值需小于 " + data.max;
+                            }
+                        }
+                        $("#newValTip").html(str).slideDown("fast");
+                        $("#newValErrorTip").slideUp("fast");
+                    } else {
+                        $("#newValTip").html("该测点没有历史值，请填加新值").slideDown("fast");
+                        $("#newValErrorTip").slideUp("fast");
+                    }
+                    $("#newValue").val("").attr("disabled", false);
+                }
+            });
+        });
+
+
+
+        $("#addButton").click(function () {
+            var pointID = $("#selectAnalogId").val();
+            $("#timeInput").val("");
+            $("#newValue").attr("disabled", true).val("");
+            $("#newValTip").hide();
+            $("#newValErrorTip").hide();
+            $("#newValDiv").dialog({
+                modal: true,
+                width: 500,
+                resizable: false,
+                buttons: {
+                    '添加': function () {
+                        if (/^-?\d+(\.\d+)?$/.test($("#newValue").val()) == false) {
+                            $("#newValErrorTip").html("添加值必须为数字").slideDown();
+                            return;
+                        }
+                        if (+$("#valMinRange").val() != "" && +$("#newValue").val() <= +$("#valMinRange").val()) {
+                            $("#newValTip").animate({
+                                "color": "red"
+                            }, "slow").animate({
+                                "color": "black"
+                            }, "slow");
+                            return;
+                        }
+                        if (+$("#valMaxRange").val() != "" && +$("#newValue").val() >= +$("#valMaxRange").val()) {
+                            $("#newValTip").animate({
+                                "color": "red"
+                            }, "slow").animate({
+                                "color": "black"
+                            }, "slow");
+                            return;
+                        }
+                        $.getJSON('@Url.Action("AddEnergyHistoryAjax", "Home")', {
+                            analogNo: pointID,
+                            time: $("#timeInput").val(),
+                            value: $("#newValue").val()
+                        }, function (jsonData) {
+                            if (jsonData == null) {
+                                $("#newValErrorTip").html("请刷新重试！").show();
+                                return;
+                            }
+                            if (!jsonData.ifSucceed) {
+                                $("#newValue").val("");
+                                $("#newValErrorTip").html("添加不成功，检查您输入的新值是否符合要求！").slideDown("fast");
+                            } else {
+                                
+                                /****************************有添加新值***/
+                                isModified = true;
+                                if (minTime > $("#timeInput").val()) minTime = $("#timeInput").val();
+                                alert(minTime);
+                                alert($("#timeInput").val());
+                                ///////////////////***********************////////////////////////
+                                $("#timeInput").val("");
+                                $("#newValue").val("");
+                                $("#newValErrorTip").html("添加成功！ 您可以继续添加。").slideDown("fast");
+                            }
+                        });
+                    }
+                }, /////////////////////////////****************************************/////////////////////
+                close: function () {
+                    if (!isModified) return;
+                    if (confirm("您刚才修改了该测点数据，该测点所属对象（父测点）信息为：\n 编号：\n 名称：\n 是否立即刷新父测点数据？")) { isModified = false; }
+                }
+                /////////////////////////****************************************//////////////////////////////////
+            });
+        });
+        /////////////////////////修改历史值////////////////////////////////
+        $("#modifyButton").click(function () {
+            var startTime = $("#startTime").val();
+            var endTime = $("#endTime").val();
+            if (startTime == "") {
+                alert("请选择起始时间！");
+                return;
+            }
+            if (endTime == "") {
+                alert("请选择结束时间");
+                return;
+            }
+            if (Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + "00") > Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + "00")) {
+                alert("起始时间不能晚于结束时间。")
+                return;
+            }
+            $("#increaseValue").val("");
+            $("#increaseValueTip").hide();
+            $("#modifyValByTimePeriod").dialog({
+                modal: true,
+                width: 500,
+                resizable: false,
+                buttons: {
+                    '修改': function () {
+                        if (/^-?\d+(\.\d+)?$/.test($("#increaseValue").val()) == false) {
+                            $("#increaseValueTip").html("添加值必须为数字").slideDown();
+                            return;
+                        }
+                        $("#increaseValueTip").html('修改操作进行中，请稍候。。。。。').show();
+                        $.getJSON('@Url.Action("ModifyAnalogHistoryByTimePeriod","Home")', {
+                            analogNo: $("#pointID").val(),
+                            startTime: $("#startTime").val(),
+                            endTime: $("#endTime").val(),
+                            value: $("#increaseValue").val()
+                        }, function (jsonData) {
+                            if (jsonData == null) {
+                                $("#increaseValueTip").html("请刷新重试！").show();
+                                return;
+                            }
+                            if (!jsonData.ifSucceed) {
+                                $("#modifyValByTimePeriod").dialog("close");
+                                alert("该测点在查询范围内没有数据。");
+                                return;
+                            } else {
+                                $("#modifyValByTimePeriod").dialog("close");
+                                isModified = true; //***************//修改了历史值
+                                alert("修改成功！");
+                            }
+                        })
+                    }
+                }, ////////*************************////
+                close: function () {
+                    if (!isModified) return;
+                    if (confirm("您刚才修改了该测点数据，该测点所属对象（父测点）信息为：\n 编号：\n 名称：\n 是否立即刷新父测点数据？")) { isModified = false; }
+                } /////////************************/////////////////
+            });
+        });
+        //////////////////////批量删除/////////////////////////
+        $("#deleteAllButton").click(function () {
+            var startTime = $("#startTime").val();
+            var endTime = $("#endTime").val();
+            if (startTime == "") {
+                alert("请选择起始时间！");
+                return;
+            }
+            if (endTime == "") {
+                alert("请选择结束时间");
+                return;
+            }
+            if (Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + "00") > Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + "00")) {
+                alert("起始时间不能晚于结束时间。")
+                return;
+            }
+            $.getJSON('@Url.Action("AICountByTimePeriod","Home")', {
+                analogNo: $("#pointID").val(),
+                startTime: $("#startTime").val(),
+                endTime: $("#endTime").val()
+            }, function (jsonData) {
+                if (jsonData == null) {
+                    alert("请刷新重试！");
+                    return;
+                }
+                if (jsonData.AICount == 0) {
+                    alert("您查询的时间范围内没有历史值。");
+                    return;
+                } else {
+                    var confirmMsg = "您确认将" + startTime + "到" + endTime + "之间的" + jsonData.AICount + "个历史值全部删除？";
+                    if (confirm(confirmMsg)) {
+                        $.getJSON('@Url.Action("DeleteAnalogHistoryByTimePeriod","Home")', {
+                            analogNo: $("#pointID").val(),
+                            startTime: $("#startTime").val(),
+                            endTime: $("#endTime").val()
+                        }, function (jsonData) {
+                            if (jsonData == null) {
+                                alert("请刷新重试！");
+                                return;
+                            }
+                            if (jsonData.ifSucceed) {
+                                //alert("删除成功。");
+                                ///////////////////////*********************///////////////////////////
+                                isModified = true;
+                                if (confirm("删除成功，该测点所属对象（父测点）信息为：\n 编号：\n 名称：\n 是否立即刷新父测点数据？")) { isModified = false; }
+                                ////////////////////////////**************************/////////////////////////////
+                                return;
+                            } else {
+                                alert("删除失败。");
+                                return;
+                            }
+                        })
+                    }
+                }
+
+            })
+        });
     });
+
+    function modifyVal(updateTimeLongVal) {
+        $.getJSON('@Url.Action("QueryValRangeAlt", "Home")', {
+            analogId: $("#selectAnalogId").val(),
+            inputDateTimeLong: updateTimeLongVal
+        }, function (data) {
+            if (data == null) {
+                $("#dataDiv").hide();
+                $("#modifyValErrorTip").html("请刷新重试！").slideDown("fast");
+                return;
+            }
+            if ($.isEmptyObject(data)) {
+                $("#modifyValErrorTip").html("该时刻已存在值，请重新输入时间").slideDown("fast");
+            } else {
+                $("#valMinRange").val(data.min);
+                $("#valMaxRange").val(data.max);
+                var str = "";
+                if (data.min != "") {
+                    str = "添加值需大于 " + data.min;
+                }
+                if (data.max != "") {
+                    if (str != "") {
+                        str += (" 并且小于 " + data.max);
+                    } else {
+                        str = "添加值需小于 " + data.max;
+                    }
+                }
+                $("#modifyValTip").html(str).show();
+                $("#modifyValErrorTip").hide();
+                $("#modifyValInput").val("");
+
+                $("#modifyValDiv").dialog({
+                    modal: true,
+                    width: 400,
+                    resizable: false,
+                    buttons: {
+                        '修改': function () {
+                            var dialogObj = $(this);
+                            if (/^-?\d+(\.\d+)?$/.test($("#modifyValInput").val()) == false) {
+                                $("#modifyValErrorTip").html("添加值必须为数字").slideDown();
+                                return;
+                            }
+                            if (+$("#valMinRange").val() != "" && +$("#modifyValInput").val() <= +$("#valMinRange").val()) {
+                                $("#modifyValTip").animate({
+                                    "color": "red"
+                                }, "slow").animate({
+                                    "color": "black"
+                                }, "slow");
+                                return;
+                            }
+                            if (+$("#valMaxRange").val() != "" && +$("#modifyValInput").val() >= +$("#valMaxRange").val()) {
+                                $("#modifyValTip").animate({
+                                    "color": "red"
+                                }, "slow").animate({
+                                    "color": "black"
+                                }, "slow");
+                                return;
+                            }
+                            $.getJSON('@Url.Action("ModifyAnalogHistory", "Home")', {
+                                analogNo: $("#selectAnalogId").val(),
+                                timeLongVal: updateTimeLongVal,
+                                value: $("#modifyValInput").val()
+                            }, function (jsonData) {
+                                if (jsonData == null) {
+                                    $("#modifyValErrorTip").html("请刷新重试！").show();
+                                    return;
+                                }
+                                if (!jsonData.isSucceed) {
+                                    $("#modifyValInput").val("");
+                                    $("#modifyValErrorTip").html("修改失败，检查您输入的新值是否符合要求！").slideDown("fast");
+                                } else {
+                                    //alert("修改成功！请重新查询");
+                                    ////*********************************////
+                                    isModified = true;
+                                    if (confirm("修改成功，该测点所属对象（父测点）信息为：\n 编号：\n 名称：\n 是否立即刷新父测点数据？")) { isModified = false; }
+                                    /***********************/
+                                    $("#resultDiv").slideUp("fast");
+                                    $("#dataDiv").hide();
+                                    dialogObj.dialog("close");
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    function deleteVal(timeLongVal) {
+        if (confirm("确认删除？")) {
+            $.getJSON('@Url.Action("DeleteAnalogHistory", "Home")', {
+                "analogNo": $("#selectAnalogId").val(),
+                "timeLongVal": timeLongVal
+            }, function (jsonData) {
+                if (jsonData == null) {
+                    alert("删除失败，尝试刷新后重新操作！");
+                    return;
+                }
+                if (!jsonData.isSucceed) {
+                    alert("删除失败，尝试刷新后重新操作！");
+                } else {
+                    //alert("删除成功！请重新查询！");
+                    ////*********************************////
+                    isModified = true;
+                    if (confirm("删除成功，该测点所属对象（父测点）信息为：\n 编号：\n 名称：\n 是否立即刷新父测点数据？")) { isModified = false; }
+                    /***********************/
+                    $("#resultDiv").slideUp("fast");
+                    $("#dataDiv").hide();
+                }
+            });
+        }
+    }
 </script>
 <script id="dataTemplate" type="text/x-jQuery-tmpl">
     <tr class="${$item.alternate($data)}"><td>${Time}</td><td>${ValStr}</td>

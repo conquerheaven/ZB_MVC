@@ -120,5 +120,24 @@ namespace ZB_MVC.Models.Repository.Implement
                 return false;
             }
         }
+
+        public bool AddAMP(AnalogMeasurePoint amp)
+        {
+            try
+            {
+                cx.AnalogMeasurePoints.InsertOnSubmit(amp);
+                cx.SubmitChanges();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public int GetAMPMaxNo()
+        {
+            return cx.AnalogMeasurePoints.Select(x => x.AMP_AnalogNo).Max();
+        }
     }
 }

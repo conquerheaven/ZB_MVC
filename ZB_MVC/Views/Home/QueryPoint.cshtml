@@ -33,7 +33,6 @@
 		    <li class="current"><a>查询测点</a></li>
             <li><a href="@Url.Action("AddRealPoint", "Home")">增加真实测点</a></li>
             <li><a href="@Url.Action("AddVirtualPoint", "Home")">增加虚拟测点</a></li>
-            <li><a href="@Url.Action("ExchangePoint", "Home")">更换电表</a></li>
 	    </ul>
 	    <div class="tab-div">
         <form id="myForm" action="#" method="post">
@@ -133,17 +132,6 @@
 <input type="hidden" id="objType" value=""/>
  
 
- <div id="newValDiv" title="添加测点新的历史值" class="hidden">
-    <fieldset>
-        <label for="timeInput">添加时间：</label>
-        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="timeInput" name="timeInput"/>
-        <p id="newValTip" class="hidden a-center"></p>
-        <label for="newValue">添加值：</label>
-        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="newValue" name="newValue" disabled="disabled"/>
-        <p id="newValErrorTip" class="red a-center hidden"></p>
-    </fieldset>
-</div>
-
 
  <script type="text/javascript">
      $(function () {
@@ -228,7 +216,7 @@
                  $("#noDataDiv").html('没有权限或登录超时，尝试重新 @Html.ActionLink("登录", "Index2", "Homes", new { area = "" }, null)').show();
                  return;
              }
-             if (global_totalPages = -1) {
+             if (global_totalPages == -1) {
                  global_totalPages = jsonData.totalPages;
              }
              if (global_totalPages < 1) {
@@ -293,107 +281,6 @@
              }
          });
      }
-
-     function addNewValue(pointID) {
-         $("#timeInput").val("");
-         $("#newValue").attr("disabled", true).val("");
-         $("#newValTip").hide();
-         $("#newValErrorTip").hide();
-         $("#selectAnalogId").val(pointID);
-         $("#newValDiv").dialog({
-             modal: true,
-             width: 400,
-             resizable: false,
-             buttons: {
-                 '添加': function () {
-                     if (/^-?\d+(\.\d+)?$/.test($("#newValue").val()) == false) {
-                         $("#newValErrorTip").html("添加值必须为数字").slideDown();
-                         return;
-                     }
-                     if (+$("#valMinRange").val() != "" && +$("#newValue").val() <= +$("#valMinRange").val()) {
-                         $("#newValTip").animate({
-                             "color": "red"
-                         }, "slow").animate({
-                             "color": "black"
-                         }, "slow");
-                         return;
-                     }
-                     if (+$("#valMaxRange").val() != "" && +$("#newValue").val() >= +$("#valMaxRange").val()) {
-                         $("#newValTip").animate({
-                             "color": "red"
-                         }, "slow").animate({
-                             "color": "black"
-                         }, "slow");
-                         return;
-                     }
-                     $.getJSON('@Url.Action("AddEnergyHistoryAjax", "Home")', {
-                         analogNo: pointID,
-                         time: $("#timeInput").val(),
-                         value: $("#newValue").val()
-                     }, function (jsonData) {
-                         if (jsonData == null) {
-                             $("#newValErrorTip").html("添加失败，请刷新重试！").show();
-                             return;
-                         }
-                         if (!jsonData.ifSucceed) {
-                             $("#newValue").val("");
-                             $("#newValErrorTip").html("添加不成功，检查您输入的新值是否符合要求！").slideDown("fast");
-                         } else {
-                             $("#timeInput").val("");
-                             $("#newValue").val("");
-                             $("#newValErrorTip").html("添加成功！ 您可以继续添加。").slideDown("fast");
-                         }
-                     });
-                 }
-             }
-         });
-     }
-
-     $(function(){
-         $("#timeInput").datetimepicker();
-         $("#timeInput").change(function () {
-             var selectedDateTime = $.trim($(this).val());
-             if (selectedDateTime == "") {
-                 return;
-             }
-             $.getJSON('@Url.Action("QueryValRange", "Home")', {
-                 analogId: $("#selectAnalogId").val(),
-                 inputDateTime: selectedDateTime
-             }, function (data) {
-                 if (data == null) {
-                     $("#dataDiv").hide();
-                     $("#newValErrorTip").html("请刷新重试").slideDown("fast");
-                     return;
-                 }
-                 if ($.isEmptyObject(data)) {
-                     $("#newValErrorTip").html("该时刻已存在值，请重新输入时间").slideDown("fast");
-                 } else {
-                     $("#valMinRange").val(data.min);
-                     $("#valMaxRange").val(data.max);
-                     if (data.min != "" || data.max != "") {
-                         var str = "";
-                         if (data.min != "") {
-                             str = "添加值需大于 " + data.min;
-                         }
-                         if (data.max != "") {
-                             if (str != "") {
-                                 str += (" 并且小于 " + data.max);
-                             } else {
-                                 str = "添加值需小于 " + data.max;
-                             }
-                         }
-                         $("#newValTip").html(str).slideDown("fast");
-                         $("#newValErrorTip").slideUp("fast");
-                     } else {
-                         $("#newValTip").html("该测点没有历史值，请填加新值").slideDown("fast");
-                         $("#newValErrorTip").slideUp("fast");
-                     }
-                     $("#newValue").val("").attr("disabled", false);
-
-                 }
-             });
-         });
-     });
  </script>
  <script id="dataTemplate" type="text/x-jQuery-tmpl">
     <tr class="${$item.alternate($data)}">
@@ -407,7 +294,7 @@
     <td>${ParentNoStr}</td>
     <td>${RealFlagStr}</td>
     <td>${StatFlagStr}</td>
-    <td><a href='@Url.Action("ModifyPoint", "Home")?p=${PNO}'>修改</a> <a href="javascript:void(0)" onclick="deletePoint('${PNO}')">删除</a> <a href='@Url.Action("QueryHistoryVal", "Home")?analogNo=${PNO}&analogName=${PName}'>查询历史记录</a> <a onclick="addNewValue('${PNO}')" href="javascript:void(0)">录入新值</a>
+    <td><a href='@Url.Action("ModifyPoint", "Home")?p=${PNO}'>修改</a> <a href="javascript:void(0)" onclick="deletePoint('${PNO}')">删除</a> <a href='@Url.Action("QueryHistoryVal", "Home")?analogNo=${PNO}&analogName=${PName}'>查询历史记录</a>
     {{if RealFlagStr == "虚拟点"}}
         <a onclick="updateDataValue('${PNO}')" href="javascript:void(0)">刷新数据</a>
     {{/if}}

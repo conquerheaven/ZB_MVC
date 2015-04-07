@@ -30,5 +30,25 @@ namespace ZB_MVC.Models.Repository.Implement
                 return false;
             }
         }
+
+        public int GetNextAnalogNo()
+        {
+            int max = cx.AnalogInfos.Select(x => x.AI_No).Max();
+            return max + 1;
+        }
+
+        public int AddAnalogInfo(AnalogInfo ai)
+        {
+            try
+            {
+                cx.AnalogInfos.InsertOnSubmit(ai);
+                cx.SubmitChanges();
+                return ai.AI_No;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
     }
 }

@@ -39,16 +39,6 @@ namespace ZB_MVC.Controllers
             return View();
         }
 
-        public ActionResult AddRealPoint()
-        {
-            return View();
-        }
-
-        public ActionResult AddVirtualPoint()
-        {
-            return View();
-        }
-
         /// <summary>
         /// 使用Ajax根据校区ID得到区域
         /// </summary>
@@ -398,5 +388,195 @@ namespace ZB_MVC.Controllers
             }
             return null;
         }
+
+        public ActionResult QueryEnergyHistoryAjax(int currentPage, int totalPages, int analogNo, DateTime startTime, DateTime endTime)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                Pager pager = null;
+                IList historyValList = null;
+                if (totalPages == -1)
+                {
+                    int totalRows = _analogHistoryRepos.GetEnergyHistory(analogNo, startTime, endTime).Count();
+                    pager = new Pager(1, totalRows);
+                }
+                else
+                {
+                    pager = new Pager(currentPage, totalPages, false);
+                }
+                if (pager.TotalPages > 0)
+                {
+                    historyValList = _analogHistoryRepos.GetEnergyHistory(analogNo, startTime, endTime).Skip(pager.StartRow).Take(pager.PageSize).ToList();
+                }
+                var resultData = new
+                {
+                    totalPages = pager.TotalPages,
+                    data = historyValList
+                };
+                return Json(resultData, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult ModifyAnalogHistoryByTimePeriod(int analogNo, DateTime startTime, DateTime endTime, double value)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                Boolean ifSucceed = _analogHistoryRepos.ModifyByTimePeriod(analogNo, startTime, endTime, value);
+                return Json(new { ifSucceed = ifSucceed }, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult AICountByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                int AICount = _analogHistoryRepos.AICountByTimePeriod(analogNo, startTime, endTime);
+                return Json(new { AICount = AICount }, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult DeleteAnalogHistoryByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                Boolean ifSucceed = _analogHistoryRepos.DeleteByTimePeriod(analogNo, startTime, endTime);
+                return Json(new { ifSucceed = ifSucceed }, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult QueryValRangeAlt(int analogId, long inputDateTimeLong)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                DateTime inputDateTime = new DateTime(inputDateTimeLong);
+                IDictionary<string, string> dic = _analogHistoryRepos.GetTwoEndpointValAlt(analogId, inputDateTime);
+                return Json(dic, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult ModifyAnalogHistory(int analogNo, long timeLongVal, double value)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                DateTime time = new DateTime(timeLongVal);
+                var flag = _analogHistoryRepos.Modify(analogNo, time, value);
+                return Json(new { isSucceed = flag }, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+        public ActionResult DeleteAnalogHistory(int analogNo, long timeLongVal)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                DateTime time = new DateTime(timeLongVal);
+                var flag = _analogHistoryRepos.Delete(analogNo, time);
+                return Json(new { isSucceed = flag }, JsonRequestBehavior.AllowGet);
+            }
+            return null;
+        }
+
+
+
+        public ActionResult AddRealPoint()
+        {
+            var powerList = _powerClassRepos.GetAll();
+            var newID = _analogInfoRepos.GetNextAnalogNo();
+            ViewBag.newID = newID;
+            var RTUList = _rtuRepos.GetAll();
+            ViewBag.RTUList = RTUList;
+            return View(powerList);
+        }
+
+        public ActionResult AddVirtualPoint()
+        {
+            var powerList = _powerClassRepos.GetAll();
+            var newID = _ampRepos.GetAMPMaxNo() + 1;
+            ViewBag.newID = newID;
+            var RTUList = _rtuRepos.GetAll();
+            ViewBag.RTUList = RTUList;
+            return View(powerList);
+        }
+
+        public ActionResult AddPointInfo(int? pointID, string pointName, int? schoolID, int? areaID, int? buildingID, int? roomID, string powerType, string powerName, int? realFlag, int? statFlag, int? parentPointId, int? RTU_No, int? AI_Serial, int? AI_Base, int? AI_Rate, string encoding)
+        {
+            if (pointID.HasValue && pointName.Length > 0 && realFlag.HasValue && statFlag.HasValue)
+            {
+                if (parentPointId == null || parentPointId.Value < 0)
+                {
+                    parentPointId = 0;
+                }
+                AnalogMeasurePoint amp = new AnalogMeasurePoint();
+                amp.AMP_AnalogNo = pointID.Value;
+                amp.AMP_Name = pointName;
+                amp.AMP_CptFlag = Convert.ToByte(realFlag.Value);
+                amp.AMP_Statistic = Convert.ToByte(statFlag.Value);
+                amp.AMP_SchooldID = schoolID.HasValue ? schoolID.Value : 0;
+                amp.AMP_SAreaID = areaID.HasValue ? areaID.Value : 0;
+                amp.AMP_BuildingID = buildingID.HasValue ? buildingID.Value : 0;
+                amp.AMP_RoomID = roomID.HasValue ? roomID.Value : 0;
+                amp.AMP_PowerType = powerType;
+                amp.AMP_PowerName = powerName;
+                amp.AMP_Unit = "-";
+                amp.AMP_Date = DateTime.Now;
+                amp.AMP_Val = 0;
+                amp.AMP_Timespan = 5;
+                amp.AMP_ParentNo = parentPointId;
+                amp.AMP_State = true;
+                amp.AMP_ValRem = 0;
+                amp.AMP_DepartID = 0;
+                amp.AMP_OperationRule = "0";
+                amp.AMP_OperationParameter = 0;
+                amp.AMP_Encoding = encoding;
+                bool pointFlag = _ampRepos.AddAMP(amp);
+                bool AIFlag = true;
+                if (RTU_No.HasValue && RTU_No != 0)
+                {
+                    AnalogInfo ai = new AnalogInfo();
+                    ai.RTU_No = Convert.ToInt16(RTU_No.Value);
+                    ai.AI_No = pointID.Value;
+                    ai.AI_Serial = AI_Serial.HasValue ? Convert.ToInt16(AI_Serial.Value) : Convert.ToInt16(0);
+                    ai.AI_Name = pointName;
+                    ai.AI_LogicalLow = 0;
+                    ai.AI_LogicalUp = 100000;
+                    ai.AI_Decimal = 2;
+                    ai.AI_Cptflag = 0;
+                    ai.AI_Base = AI_Base.HasValue ? AI_Base.Value : 0;
+                    ai.AI_Rate = AI_Rate.HasValue ? AI_Rate.Value : 1;
+                    ai.AI_LockVal = 0;
+                    ai.AI_LockFlag = 0;
+                    ai.AI_Timespace = 5;
+                    String power = powerType.Substring(0, 3);
+                    if (power == "001")
+                    {
+                        ai.AI_Unit = "度";
+                    }
+                    else if (power == "002")
+                    {
+                        ai.AI_Unit = "吨";
+                    }
+                    else if (power == "003")
+                    {
+                        ai.AI_Unit = "立方米";
+                    }
+                    ai.AI_State = 1;
+                    ai.AI_Level = 0;
+                    ai.AI_Type = 0;
+                    int no = _analogInfoRepos.AddAnalogInfo(ai);
+                    if (no == 0) { AIFlag = false; }
+                }
+                ViewBag.flag = pointFlag & AIFlag;
+                ViewBag.realFlag = realFlag.Value;
+            }
+            return View();
+        }
+
+        
+
     }
 }

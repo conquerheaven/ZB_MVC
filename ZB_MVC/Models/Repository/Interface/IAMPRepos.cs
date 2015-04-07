@@ -13,5 +13,7 @@ namespace ZB_MVC.Models.Repository.Interface
         bool ModifyAMP(AnalogMeasurePoint amp);
         bool IsUsedByObj(int pno);
         bool DeleteAMP(int pno);
+        bool AddAMP(AnalogMeasurePoint amp);
+        int GetAMPMaxNo();
     }
 }

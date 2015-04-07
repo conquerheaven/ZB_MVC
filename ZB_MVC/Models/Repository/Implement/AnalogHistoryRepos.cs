@@ -81,5 +81,102 @@ namespace ZB_MVC.Models.Repository.Implement
                        };
             return list;
         }
+
+        public Boolean ModifyByTimePeriod(int analogNo, DateTime startTime, DateTime endTime, double value)
+        {
+            IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time >= startTime && x.AH_Time <= endTime);
+            if (allAIInTimePeriod.Count() == 0) return false;
+            foreach (var item in allAIInTimePeriod)
+            {
+                item.AH_Value += value;
+            }
+            cx.SubmitChanges();
+            return true;
+        }
+
+        public int AICountByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
+        {
+            int aiCount = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > startTime && x.AH_Time < endTime).Count();
+            return aiCount;
+        }
+
+        public Boolean DeleteByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
+        {
+            IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > startTime && x.AH_Time < endTime);
+            if (allAIInTimePeriod.Count() == 0) return false;
+            cx.AnalogHistories.DeleteAllOnSubmit(allAIInTimePeriod);
+            cx.SubmitChanges();
+            return true;
+        }
+
+        public IDictionary<string, string> GetTwoEndpointValAlt(int analogNo, DateTime inputDateTime)
+        {
+            IDictionary<string, string> dic = new Dictionary<string, string>();
+            var lessObj = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time < inputDateTime).OrderByDescending(x => x.AH_Time).FirstOrDefault();
+            if (lessObj != null)
+            {
+                dic["min"] = lessObj.AH_Value.ToString("f1");
+            }
+            else
+            {
+                dic["min"] = "";
+            }
+            var greatObj = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > inputDateTime).OrderBy(x => x.AH_Time).FirstOrDefault();
+            if (greatObj != null)
+            {
+                dic["max"] = greatObj.AH_Value.ToString("f1");
+            }
+            else
+            {
+                dic["max"] = "";
+            }
+
+            return dic;
+        }
+
+        public bool Modify(int analogNo, DateTime time, double modifyVal)
+        {
+            try
+            {
+                var item = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time == time).SingleOrDefault();
+                if (item != null)
+                {
+                    item.AH_Value = modifyVal;
+                    cx.SubmitChanges();
+                }
+                else
+                {
+                    return false;
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public bool Delete(int analogNo, DateTime time)
+        {
+            try
+            {
+                var item = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time == time).SingleOrDefault();
+                if (item != null)
+                {
+                    cx.AnalogHistories.DeleteOnSubmit(item);
+                    cx.SubmitChanges();
+                }
+                else
+                {
+                    return false;
+                }
+                cx.SubmitChanges();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
     }
 }
