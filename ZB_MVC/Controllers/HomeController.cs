@@ -371,6 +371,7 @@ namespace ZB_MVC.Controllers
             {
                 ViewData["analogNo"] = analogNo;
                 ViewData["analogName"] = analogName;
+                AnalogMeasurePoint amp = _ampRepos.GetAMP(analogNo);
             }
             return View();
         }
