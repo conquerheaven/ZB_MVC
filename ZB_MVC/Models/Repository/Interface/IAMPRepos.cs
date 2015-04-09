@@ -15,5 +15,13 @@ namespace ZB_MVC.Models.Repository.Interface
         bool DeleteAMP(int pno);
         bool AddAMP(AnalogMeasurePoint amp);
         int GetAMPMaxNo();
+
+        /// <summary>
+        /// 刷新历史数据
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <returns></returns>
+        string UpdateValueOfParentPoint(int analogNo, DateTime startTime);
     }
 }

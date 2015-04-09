@@ -130,13 +130,21 @@
  
 <input type="hidden" id="objIDs" value="0" />
 <input type="hidden" id="objType" value=""/>
- 
-
+ <!--**************************************************************************-->
+ <div id="refreshDiv" title="选择刷新起始时间" class="hidden">
+    <fieldset>
+        <label for="timeInput">起始时间：</label>
+        <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="timeInput" name="timeInput"/>
+        <p id="refreshTip" class="red hidden a-center"></p>
+    </fieldset>
+</div>
+<!--**************************************************************************-->
 
  <script type="text/javascript">
      $(function () {
          $("#realFlagSet").buttonset();
          $("#statFlagSet").buttonset();
+         $("#timeInput").datetimepicker();
          $("#queryObj").click(function () {
              $("#dialogErrorTip").hide();
              $("#buildingSelectDiv").dialog({
@@ -281,6 +289,53 @@
              }
          });
      }
+
+     ///////////////****************操作等待**********//////////////////////
+     function Wait() {
+         $("#topDiv").width(document.body.clientWidth);
+         $("#topDiv").height(document.body.clientHeight);
+         var loadingLeft = document.body.clientWidth / 2;
+         var loadingTop = document.body.clientHeight / 2;
+         $("#loadingDiv").css({ 'left': loadingLeft, 'top': loadingTop });
+         $("#topDiv").show();
+     }
+     ///////////////////////*******************/////////////////////////////////////////
+
+     ////////////////刷新数据///////////////////////////////
+     function updateDataValue(pointID) {
+         $("#refreshDiv").dialog({
+             modal: true,
+             width: 500,
+             resizable: false,
+             buttons: {
+                 '刷新': function () {
+                     if ($("#timeInput").val() == "") {
+                         $("#refreshTip").html("请选择起始时间").slideDown();
+                         return;
+                     }
+                     if (confirm("更新虚拟测点的历史值可能需要数分钟时间，请耐心等待，这段时间内请不要进行其他操作！")) {
+                         $("#refreshDiv").dialog("close");
+                         Wait();
+                         $.getJSON('@Url.Action("UpdateHistoryValue", "Home")', {
+                             analogNo: pointID,
+                             startTime: $("#timeInput").val()
+                         }, function (jsonData) {
+                             $("#topDiv").hide();
+                             alert(jsonData.result);
+                             /*if (jsonData.ifSucceed == true) {
+                             $("#refreshDiv").dialog("close");
+                             alert("更新数据成功！");
+                             } else {
+                             $("#refreshDiv").dialog("close");
+                             alert("更新数据失败！");
+                             }*/
+                         });
+                     }
+                 }
+             }
+         });
+     }
+     ///////////////////*************************/////////////////////////
  </script>
  <script id="dataTemplate" type="text/x-jQuery-tmpl">
     <tr class="${$item.alternate($data)}">
@@ -302,6 +357,9 @@
     </tr>
 </script>
  @Html.Partial("_BuildingSelect")
+	<div id="topDiv" class="ui-widget-overlay" style=" display:none; z-index:1000; ">
+        <div id="loadingDiv" style=" position:absolute;"><img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" alt="请耐心等待……" /></div>
+    </div>
 </body>
 
 </html>

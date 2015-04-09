@@ -139,5 +139,128 @@ namespace ZB_MVC.Models.Repository.Implement
         {
             return cx.AnalogMeasurePoints.Select(x => x.AMP_AnalogNo).Max();
         }
+
+        /// <summary>
+        /// 刷新历史数据
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <returns></returns>
+        public string UpdateValueOfParentPoint(int analogNo, DateTime startTime)
+        {
+            //Console.WriteLine("进入函数");
+            DateTime t1 = DateTime.Now;
+
+            //if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            //cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
+            try
+            {
+                if (analogNo == 0) return "非虚拟点";
+                var point = cx.AnalogMeasurePoints.Single(x => x.AMP_AnalogNo == analogNo);
+                int childPointsCount = cx.AnalogMeasurePoints.Where(x => x.AMP_ParentNo == analogNo).Count();
+                if (point.AMP_CptFlag == 0 && childPointsCount > 0)
+                {
+                    //Console.WriteLine("开始查询");
+                    IQueryable<AnalogHistory> oldValue = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo);
+                    cx.AnalogHistories.DeleteAllOnSubmit(oldValue);
+                    cx.SubmitChanges();
+                    //Console.WriteLine("寻找儿子节点");
+                    DateTime t2 = DateTime.Now;
+                    //////////////////////将儿子节点的history值保存到二维list中///////
+                    var son = (from son_point in cx.AnalogMeasurePoints
+                               where son_point.AMP_ParentNo == analogNo
+                               select new
+                               {
+                                   AMP_analogNo = son_point.AMP_AnalogNo
+                               }).ToList();
+                    List<List<AnalogHistory>> AH_array = new List<List<AnalogHistory>>();
+                    for (int i = 0; i < son.Count; i++)
+                    {
+                        var son_history = (from sh in cx.AnalogHistories
+                                           where sh.AH_AnalogNo == son[i].AMP_analogNo
+                                           orderby sh.AH_Time
+                                           select sh).ToList();
+                        if (son_history.Count > 0) AH_array.Add(son_history);///犯过的错误！没有判0会导致求各个子节点最小时间点的最大值时，下标会越界
+                    }
+                    /////////////////////////////////////////////////////////////////////
+                    DateTime t3 = DateTime.Now;
+                    /*//Console.WriteLine("求各个子节点最小时间点的最大值");
+                    //////////求各个子节点最小时间点的最大值////////////////////////////
+                    DateTime timeCritical = AH_array[0][0].AH_Time;
+                    for (int i = 1; i < AH_array.Count; i++)
+                    {
+                        if (timeCritical < AH_array[i][0].AH_Time) timeCritical = AH_array[i][0].AH_Time;
+                    }
+                    ////////////////////////////////////////////////////////////////////
+
+                    DateTime InsertedTime = timeCritical;
+                    timeCritical = timeCritical.AddHours(1);
+                    //Console.WriteLine("进入循环");
+                    //int cnt = 0;
+                    DateTime t4 = DateTime.Now;
+                    List<DateTime> t = new List<DateTime>();
+                    while (timeCritical < DateTime.Now)
+                    {
+                        var InsertTime = InsertedTime;
+                        var InsertValue = 0.0;
+
+                        ///////////////遍历每个节点////////////
+                        for (int i = 0; i < AH_array.Count; i++)
+                        {
+                            //////////////二分查找到该节点第一个小于等于timeCritical的时间点////
+                            int l = 0, r = AH_array[i].Count;
+                            while (l < r)
+                            {
+                                int mid = (l + r) / 2;
+                                if (AH_array[i][mid].AH_Time > timeCritical) r = mid;
+                                else l = mid + 1;
+                            }
+                            int ans = l - 1;/////二分出来的时间点在下标为l-1的类中
+                            ////////////////////////////////////////////////////////////////////
+
+                            if (InsertTime < AH_array[i][ans].AH_Time) InsertTime = AH_array[i][ans].AH_Time;
+                            InsertValue += AH_array[i][ans].AH_Value;
+                        }
+                        ///////////////////////////////////////
+
+                        //////////若插入时间大于已插入时间，则插入数据///////////
+                        if (InsertTime > InsertedTime)
+                        {
+                            AnalogHistory newAHItem = new AnalogHistory
+                            {
+                                AH_AnalogNo = analogNo,
+                                AH_Time = InsertTime,
+                                AH_Value = InsertValue
+                            };
+                            cx.AnalogHistories.InsertOnSubmit(newAHItem);
+                        }
+                        ////////////////////////////////////////////////////////
+
+                        InsertedTime = InsertTime;
+                        timeCritical = timeCritical.AddHours(1);
+                        t.Add(timeCritical);
+                        //if(cnt > 5)break;
+                        //cnt++;
+                    }*/
+                    DateTime t5 = DateTime.Now;
+                    cx.SubmitChanges();
+                    //cx.Transaction.Commit();
+                    DateTime t6 = DateTime.Now;
+                    //return "ll";
+                    return t2 +" " + t3;
+
+                    //return t1 + " " + t2 + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t[0] + " " + t[1] + " " + t[2] + " " + t[3] + " " + t[4] + "刷新成功~";
+                }
+                cx.SubmitChanges();
+                //cx.Transaction.Commit();
+                return "无子节点";
+            }
+            catch
+            {
+                //cx.Transaction.Rollback();
+                // cx.Connection.Close();
+                return "回滚成功~";
+            }
+        }
     }
 }

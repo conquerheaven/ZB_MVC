@@ -371,7 +371,13 @@ namespace ZB_MVC.Controllers
             {
                 ViewData["analogNo"] = analogNo;
                 ViewData["analogName"] = analogName;
-                AnalogMeasurePoint amp = _ampRepos.GetAMP(analogNo);
+                AnalogMeasurePoint amp = _ampRepos.GetAMP((int)analogNo);
+                if (amp.AMP_ParentNo != null && amp.AMP_ParentNo > 0)
+                {
+                    AnalogMeasurePoint parent = _ampRepos.GetAMP((int)amp.AMP_ParentNo);
+                    ViewData["parentNo"] = parent.AMP_AnalogNo;
+                    ViewData["parentName"] = parent.AMP_Name;
+                }
             }
             return View();
         }
@@ -577,7 +583,29 @@ namespace ZB_MVC.Controllers
             return View();
         }
 
-        
+        /// <summary>
+        /// 刷新历史数据
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <returns></returns>
+        public ActionResult UpdateHistoryValue(int analogNo , DateTime startTime)
+        {
+            if (Request.IsAjaxRequest())
+            {
+                return Json(new { result = _ampRepos.UpdateValueOfParentPoint(analogNo, startTime) }, JsonRequestBehavior.AllowGet);
+                /*bool ifSucceed = _ampRepos.UpdateValueOfParentPoint(analogNo , startTime);
+                if (ifSucceed)
+                {
+                    return Json(new { ifSucceed = true }, JsonRequestBehavior.AllowGet);
+                }
+                else
+                {
+                    return Json(new { ifSucceed = false }, JsonRequestBehavior.AllowGet);
+                }*/
+            }
+            return null;
+        }
 
     }
 }
