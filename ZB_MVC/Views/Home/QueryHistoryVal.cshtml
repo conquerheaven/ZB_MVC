@@ -56,11 +56,10 @@
                 </ul>
                 <ul>
                     <li>
-                        <fieldset style="width:130%">
+                        <fieldset>
                             <legend>父测点信息</legend>
                             @if (ViewData["parentNo"] != null){
                                 <a>【编号：@ViewData["parentNo"]】【名称:@ViewData["parentName"]】</a>
-                                <input type="button" value="刷新父测点数据" class="btn" />
                             }
                             else
                             {
@@ -104,6 +103,14 @@
                         </div>
                     </li>
                     <li></li>
+                </ul>
+                <ul>
+                    <li>
+                    <fieldset id="isModified" class="hidden" style="width:160%">
+                        <legend class="red">特别提醒</legend>
+                        <p class="red"> 您修改、删除或添加了数据，请在离开本页面前<strong><a href="javascript:void(0)">点击刷新</a></strong>父测点数据！<strong><a onclick="ShowLog()" href="javascript:void(0)">查看修改日志</a></strong></p>
+                    </fieldset>
+                    </li>
                 </ul>
                 <div class="clear"></div>
             </li>
@@ -160,35 +167,18 @@
     <input type="text" class="inputbox ui-widget-content ui-corner-all" value="" id="modifyValInput" name="newValInput"/>
     <p id="modifyValErrorTip" class="red a-center hidden"></p>
 </div>
-
-@if (ViewData["parentNo"] == null)
-{
-<script type="text/javascript">
-/////////////////*******************//////////////////////
-    function isRefreshParentPoint(message) {
-        alert(message);
-    }
-    /////////////////*******************//////////////////////
-</script>
-}
-else
-{
-<script type="text/javascript">
-/////////////////*******************//////////////////////
-    function isRefreshParentPoint(message) {
-        if(!isModified) return;
-        var parentNo = @ViewData["parentNo"];
-        var parentName = "@ViewData["parentName"]";
-        if(confirm(message+"\n该测点所属对象（父测点）信息为：\n\n 编号："+parentNo+"\n 名称："+parentName+"\n\n 是否立即刷新父测点数据？")){
-            isModified = false;
-            return ;
-        }
-    }
-    /////////////////*******************//////////////////////
-</script>
-}
+<!--//////////////*********显示操作日志******//////////////////////////-->
+<div id="LOG" title="日志" class="hidden">
+</div>
+<!--//////////////////////*****************///////////////////-->
 <script type="text/javascript">
     ///////////****************************/////////////////////////////////
+    var isModified = false; //******************************测点数值是否发生改变
+    var minTime = getCurrentTime(new Date()); ///************保存被修改的最早的实践点****************/////////////////////
+    var logMeg = "";//////////////保存修改日志信息//////////////
+    window.onbeforeunload = function () {
+        if(isModified) return "您还未刷新父测点数据，确定离开此页面吗？";
+    }
     function getCurrentTime(date) {//获取当前时间yy-mm-dd hh:mm
         var year = date.getFullYear();
         var month = date.getMonth()+1;
@@ -213,9 +203,17 @@ else
          var loadingTop = document.body.clientHeight / 2;
          $("#loadingDiv").css({ 'left': loadingLeft, 'top': loadingTop });
          $("#topDiv").show();
-     }
-    var isModified = false; //******************************测点数值是否发生改变
-    var minTime = getCurrentTime(new Date()); ///************保存被修改的最早的实践点****************/////////////////////
+    }
+    function AddLog(message) {
+        logMeg += message+"<br /><br />";
+    }
+    function ShowLog() {
+        $("#LOG").html(logMeg).dialog({
+            modal: true,
+            width: 650,
+            resizable: false
+        });
+    }
     ///////////////************************////////////////////////////////////////
     $(function () {
         var global_totalPages = -1;
@@ -263,7 +261,7 @@ else
                 error.appendTo(element.parent().next());
             },
             submitHandler: function (form) {
-            //////////////////////*************************************************************/////////////////////////////////////////////////
+                //////////////////////*************************************************************/////////////////////////////////////////////////
                 var timeLength = Date.parse($.trim($("#endTime").val().replace(/-/g, "/")) + ":00") - Date.parse($.trim($("#startTime").val().replace(/-/g, "/")) + ":00");
 
                 if (timeLength < 0) {
@@ -274,7 +272,7 @@ else
                     $("#endTime").parent().next().html('<label class="error" for="startTime" generated="true">查询时间间隔不能超过60天！请重新选择时间！</label>');
                     return false;
                 }
-            //////////////////////////////////*******************************************/////////////////////////////////////////////////////////
+                //////////////////////////////////*******************************************/////////////////////////////////////////////////////////
                 if (!$("#resultDiv").is(":visible")) {
                     var displayType = $("input[name='displayRadio']:checked").val();
                     if (displayType == "list") {
@@ -458,18 +456,16 @@ else
                                 /****************************有添加新值***/
                                 isModified = true;
                                 if (minTime > $("#timeInput").val()) minTime = $("#timeInput").val();
+                                AddLog("添加新值：" + $("#timeInput").val() + " " + $("#newValue").val());
                                 ///////////////////***********************////////////////////////
                                 $("#timeInput").val("");
                                 $("#newValue").val("");
+                                $("#isModified").slideDown();
                                 $("#newValErrorTip").html("添加成功！ 您可以继续添加。").slideDown("fast");
                             }
                         });
                     }
-                }, /////////////////////////////****************************************/////////////////////
-                close: function(){
-                    isRefreshParentPoint("您刚才添加、修改或删除了该测点数据")
                 }
-                /////////////////////////****************************************//////////////////////////////////
             });
         });
         /////////////////////////修改历史值////////////////////////////////
@@ -524,17 +520,16 @@ else
                                 $("#dataDiv").hide();
                                 isModified = true;
                                 if (minTime > $("#startTime").val()) minTime = $("#startTime").val();
-                                alert("修改成功");
-                                /////////////////////////////**********************************//////////////////////////////////
+                                AddLog("修改时间区间数值：" + $("#startTime").val() + "至" + $("#endTime").val() + "同时增加" + $("#increaseValue").val());
                                 $("#modifyValByTimePeriod").dialog("close");
+                                alert("修改成功");
+                                $("#isModified").slideDown();
+                                /////////////////////////////**********************************//////////////////////////////////
+
                             }
                         })
                     }
-                }, /////////////////////////////****************************************/////////////////////
-                close: function(){
-                    isRefreshParentPoint("您刚才添加、修改或删除了该测点数据")
                 }
-                /////////////////////////****************************************//////////////////////////////////
             });
         });
         //////////////////////批量删除/////////////////////////
@@ -568,6 +563,9 @@ else
                 } else {
                     var confirmMsg = "您确认将" + startTime + "到" + endTime + "之间的" + jsonData.AICount + "个历史值全部删除？";
                     if (confirm(confirmMsg)) {
+                        ///////////////////////*********************///////////////////////////
+                        Wait();
+                        ///////////////////////*********************///////////////////////////
                         $.getJSON('@Url.Action("DeleteAnalogHistoryByTimePeriod", "Home")', {
                             analogNo: $("#pointID").val(),
                             startTime: $("#startTime").val(),
@@ -577,16 +575,16 @@ else
                                 alert("请刷新重试！");
                                 return;
                             }
-                            ///////////////////////*********************///////////////////////////
-                            Wait();
-                            ///////////////////////*********************///////////////////////////
+
                             if (jsonData.ifSucceed) {
                                 //alert("删除成功。");
                                 ///////////////////////*********************///////////////////////////
                                 isModified = true;
                                 if (minTime > $("#startTime").val()) minTime = $("#startTime").val();
+                                AddLog("删除时间区间数值：" + $("#startTime").val() + "至" + $("#endTime").val() + "所有数值");
                                 $("#topDiv").hide();
-                                isRefreshParentPoint("删除成功")
+                                alert("删除成功");
+                                $("#isModified").slideDown();
                                 ////////////////////////////**************************/////////////////////////////
                                 return;
                             } else {
@@ -682,17 +680,15 @@ else
                                     ////*****************************************************************///////////////////////
                                     isModified = true;
                                     if (minTime > updateTime) minTime = updateTime;
+                                    AddLog("修改单时间点数值：" + updateTime + " 的数值改为 " + $("#modifyValInput").val());
                                     alert("修改成功");
+                                    $("#isModified").slideDown();
                                     /**************************************************************//////////////////////////////////////
                                     dialogObj.dialog("close");
                                 }
                             });
                         }
-                    },/////////////////////////////****************************************/////////////////////
-                    close: function(){
-                        isRefreshParentPoint("您刚才添加、修改或删除了该测点数据")
                     }
-                    /////////////////////////****************************************//////////////////////////////////
                 });
             }
         });
@@ -722,8 +718,10 @@ else
                     ////*********************************////
                     isModified = true;
                     if (minTime > updateTime) minTime = updateTime;
+                    AddLog("删除单时间点数值：" + updateTime + " 的数值被删除");
                     $("#topDiv").hide();
-                    isRefreshParentPoint("删除成功")
+                    alert("删除成功");
+                    $("#isModified").slideDown();
                     /***********************/
                     $("#resultDiv").slideUp("fast");
                     $("#dataDiv").hide();

@@ -151,8 +151,8 @@ namespace ZB_MVC.Models.Repository.Implement
             //Console.WriteLine("进入函数");
             DateTime t1 = DateTime.Now;
 
-            //if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
-            //cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
             try
             {
                 if (analogNo == 0) return "非虚拟点";
@@ -184,7 +184,7 @@ namespace ZB_MVC.Models.Repository.Implement
                     }
                     /////////////////////////////////////////////////////////////////////
                     DateTime t3 = DateTime.Now;
-                    /*//Console.WriteLine("求各个子节点最小时间点的最大值");
+                    //Console.WriteLine("求各个子节点最小时间点的最大值");
                     //////////求各个子节点最小时间点的最大值////////////////////////////
                     DateTime timeCritical = AH_array[0][0].AH_Time;
                     for (int i = 1; i < AH_array.Count; i++)
@@ -241,24 +241,24 @@ namespace ZB_MVC.Models.Repository.Implement
                         t.Add(timeCritical);
                         //if(cnt > 5)break;
                         //cnt++;
-                    }*/
+                    }
                     DateTime t5 = DateTime.Now;
                     cx.SubmitChanges();
-                    //cx.Transaction.Commit();
+                    cx.Transaction.Commit();
                     DateTime t6 = DateTime.Now;
                     //return "ll";
-                    return t2 +" " + t3;
+                    //return t2 +" " + t3;
 
-                    //return t1 + " " + t2 + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t[0] + " " + t[1] + " " + t[2] + " " + t[3] + " " + t[4] + "刷新成功~";
+                    return t1 + " " + t2 + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t[0] + " " + t[1] + " " + t[2] + " " + t[3] + " " + t[4] + "刷新成功~";
                 }
                 cx.SubmitChanges();
-                //cx.Transaction.Commit();
+                cx.Transaction.Commit();
                 return "无子节点";
             }
             catch
             {
-                //cx.Transaction.Rollback();
-                // cx.Connection.Close();
+                cx.Transaction.Rollback();
+                cx.Connection.Close();
                 return "回滚成功~";
             }
         }

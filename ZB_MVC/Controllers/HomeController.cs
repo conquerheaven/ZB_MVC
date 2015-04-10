@@ -348,6 +348,13 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
+        /// <summary>
+        /// 添加新值
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="time"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public ActionResult AddEnergyHistoryAjax(int analogNo, DateTime time, double value)
         {
             if (Request.IsAjaxRequest())

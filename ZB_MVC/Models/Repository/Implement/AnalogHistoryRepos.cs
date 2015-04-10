@@ -38,6 +38,13 @@ namespace ZB_MVC.Models.Repository.Implement
             return dic;
         }
 
+        /// <summary>
+        /// 添加新值
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="time"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public Boolean AddEnergyHistory(int analogNo, DateTime time, double value)
         {
             try
