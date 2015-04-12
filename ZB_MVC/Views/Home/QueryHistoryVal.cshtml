@@ -106,10 +106,22 @@
                 </ul>
                 <ul>
                     <li>
-                    <fieldset id="isModified" class="hidden" style="width:160%">
+                    
+                    @if (ViewData["parentNo"] != null)
+                    {
+                        <fieldset id="isModified" class="hidden" style="width:160%">
                         <legend class="red">特别提醒</legend>
                         <p class="red"> 您修改、删除或添加了数据，请在离开本页面前<strong><a href="javascript:void(0)">点击刷新</a></strong>父测点数据！<strong><a onclick="ShowLog()" href="javascript:void(0)">查看修改日志</a></strong></p>
-                    </fieldset>
+                        </fieldset>
+                    }
+                    else
+                    {
+                        <fieldset id="isModified" class="hidden" style="width:110%">
+                        <legend class="red">特别提醒</legend>
+                        <p class="red"> 您修改、删除或添加了数据，您可以<strong><a onclick="ShowLog()" href="javascript:void(0)">查看修改日志</a></strong></p>
+                        </fieldset>
+                    }
+                    
                     </li>
                 </ul>
                 <div class="clear"></div>
@@ -168,7 +180,7 @@
     <p id="modifyValErrorTip" class="red a-center hidden"></p>
 </div>
 <!--//////////////*********显示操作日志******//////////////////////////-->
-<div id="LOG" title="日志" class="hidden">
+<div id="LOG" title="log" class="hidden">
 </div>
 <!--//////////////////////*****************///////////////////-->
 <script type="text/javascript">
@@ -205,13 +217,16 @@
          $("#topDiv").show();
     }
     function AddLog(message) {
-        logMeg += message+"<br /><br />";
+        logMeg += ">"+message+"<br /><br />";
     }
     function ShowLog() {
-        $("#LOG").html(logMeg).dialog({
+        $("#LOG").html('<fieldset>'+logMeg+'</fieldset>').dialog({
             modal: true,
             width: 650,
-            resizable: false
+            resizable: false,
+            buttons: {
+                '关闭': function () { $(this).dialog('close') }
+            }
         });
     }
     ///////////////************************////////////////////////////////////////
