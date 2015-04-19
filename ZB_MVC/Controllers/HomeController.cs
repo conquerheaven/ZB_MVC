@@ -293,7 +293,7 @@ namespace ZB_MVC.Controllers
                 amp.AMP_Statistic = Convert.ToByte(statFlag.Value);
                 amp.AMP_PowerType = powerType;
                 amp.AMP_PowerName = powerName;
-                amp.AMP_ParentNo = parentPointId;
+                amp.AMP_ParentNo = parentPointId == 0 ? oldParentID : parentPointId;
                 amp.AMP_SchooldID = schoolID.HasValue ? schoolID.Value : 0;
                 amp.AMP_SAreaID = areaID.HasValue ? areaID.Value : 0;
                 amp.AMP_BuildingID = buildingID.HasValue ? buildingID.Value : 0;
@@ -372,7 +372,7 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
-        public ActionResult QueryHistoryVal(int? analogNo , string analogName)
+        public ActionResult QueryHistoryVal(int? analogNo, string analogName)
         {
             if (analogNo != null && analogName != null)
             {
@@ -432,6 +432,14 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
+        /// <summary>
+        /// 批量修改
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <param name="endTime"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public ActionResult ModifyAnalogHistoryByTimePeriod(int analogNo, DateTime startTime, DateTime endTime, double value)
         {
             if (Request.IsAjaxRequest())
@@ -452,6 +460,13 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
+        /// <summary>
+        /// 批量删除
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <param name="endTime"></param>
+        /// <returns></returns>
         public ActionResult DeleteAnalogHistoryByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
         {
             if (Request.IsAjaxRequest())
@@ -473,6 +488,13 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
+        /// <summary>
+        /// 单点修改
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="timeLongVal"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public ActionResult ModifyAnalogHistory(int analogNo, long timeLongVal, double value)
         {
             if (Request.IsAjaxRequest())
@@ -484,6 +506,12 @@ namespace ZB_MVC.Controllers
             return null;
         }
 
+        /// <summary>
+        /// 单点删除
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="timeLongVal"></param>
+        /// <returns></returns>
         public ActionResult DeleteAnalogHistory(int analogNo, long timeLongVal)
         {
             if (Request.IsAjaxRequest())
@@ -596,20 +624,20 @@ namespace ZB_MVC.Controllers
         /// <param name="analogNo"></param>
         /// <param name="startTime"></param>
         /// <returns></returns>
-        public ActionResult UpdateHistoryValue(int analogNo , DateTime startTime)
+        public ActionResult UpdateHistoryValue(int analogNo, DateTime startTime)
         {
             if (Request.IsAjaxRequest())
             {
-                return Json(new { result = _ampRepos.UpdateValueOfParentPoint(analogNo, startTime) }, JsonRequestBehavior.AllowGet);
-                /*bool ifSucceed = _ampRepos.UpdateValueOfParentPoint(analogNo , startTime);
-                if (ifSucceed)
+                string r = _ampRepos.UpdateValueOfParentPoint(analogNo, startTime);
+                //bool ifSucceed = _ampRepos.UpdateValueOfParentPoint(analogNo , startTime);
+                if (r.Length > 20)
                 {
-                    return Json(new { ifSucceed = true }, JsonRequestBehavior.AllowGet);
+                    return Json(new { ifSucceed = true, result = r }, JsonRequestBehavior.AllowGet);
                 }
                 else
                 {
-                    return Json(new { ifSucceed = false }, JsonRequestBehavior.AllowGet);
-                }*/
+                    return Json(new { ifSucceed = false, result = r }, JsonRequestBehavior.AllowGet);
+                }
             }
             return null;
         }

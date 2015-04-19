@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using ZB_MVC.Models.Repository.Interface;
 using ZB_MVC.Models.Repository.Entity;
+using System.Diagnostics;
 
 namespace ZB_MVC.Models.Repository.Implement
 {
@@ -149,8 +150,6 @@ namespace ZB_MVC.Models.Repository.Implement
         public string UpdateValueOfParentPoint(int analogNo, DateTime startTime)
         {
             //Console.WriteLine("进入函数");
-            DateTime t1 = DateTime.Now;
-
             if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
             cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
             try
@@ -160,45 +159,55 @@ namespace ZB_MVC.Models.Repository.Implement
                 int childPointsCount = cx.AnalogMeasurePoints.Where(x => x.AMP_ParentNo == analogNo).Count();
                 if (point.AMP_CptFlag == 0 && childPointsCount > 0)
                 {
-                    //Console.WriteLine("开始查询");
-                    IQueryable<AnalogHistory> oldValue = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo);
-                    cx.AnalogHistories.DeleteAllOnSubmit(oldValue);
-                    cx.SubmitChanges();
-                    //Console.WriteLine("寻找儿子节点");
-                    DateTime t2 = DateTime.Now;
+                    Stopwatch myWatch1 = Stopwatch.StartNew();
+                    cx.ExecuteCommand("delete from AnalogHistory where AH_AnalogNo = 1681 and AH_Time >= '" + startTime + "'");
+
+                    myWatch1.Stop();
+                    string t1 = myWatch1.ElapsedMilliseconds.ToString();
+
                     //////////////////////将儿子节点的history值保存到二维list中///////
+                    Stopwatch myWatch2 = Stopwatch.StartNew();
                     var son = (from son_point in cx.AnalogMeasurePoints
                                where son_point.AMP_ParentNo == analogNo
                                select new
                                {
                                    AMP_analogNo = son_point.AMP_AnalogNo
                                }).ToList();
-                    List<List<AnalogHistory>> AH_array = new List<List<AnalogHistory>>();
+                    List<List<AHTVEntity>> AH_array = new List<List<AHTVEntity>>();
                     for (int i = 0; i < son.Count; i++)
                     {
+                        DateTime temTime = (from sh in cx.AnalogHistories
+                                            where sh.AH_AnalogNo == son[i].AMP_analogNo && sh.AH_Time <= startTime
+                                            orderby sh.AH_Time descending
+                                            select sh.AH_Time).FirstOrDefault();
+                        if (temTime == DateTime.MinValue) temTime = startTime;
                         var son_history = (from sh in cx.AnalogHistories
-                                           where sh.AH_AnalogNo == son[i].AMP_analogNo
+                                           where sh.AH_AnalogNo == son[i].AMP_analogNo && sh.AH_Time >= temTime
                                            orderby sh.AH_Time
-                                           select sh).ToList();
+                                           select new AHTVEntity
+                                           {
+                                               AH_Time = sh.AH_Time,
+                                               AH_Value = sh.AH_Value
+                                           }).ToList();
                         if (son_history.Count > 0) AH_array.Add(son_history);///犯过的错误！没有判0会导致求各个子节点最小时间点的最大值时，下标会越界
                     }
+                    myWatch2.Stop();
+                    string t2 = myWatch2.ElapsedMilliseconds.ToString();
                     /////////////////////////////////////////////////////////////////////
-                    DateTime t3 = DateTime.Now;
-                    //Console.WriteLine("求各个子节点最小时间点的最大值");
+
+
                     //////////求各个子节点最小时间点的最大值////////////////////////////
-                    DateTime timeCritical = AH_array[0][0].AH_Time;
-                    for (int i = 1; i < AH_array.Count; i++)
+                    DateTime timeCritical = startTime;
+                    for (int i = 0; i < AH_array.Count; i++)
                     {
                         if (timeCritical < AH_array[i][0].AH_Time) timeCritical = AH_array[i][0].AH_Time;
                     }
                     ////////////////////////////////////////////////////////////////////
 
                     DateTime InsertedTime = timeCritical;
-                    timeCritical = timeCritical.AddHours(1);
-                    //Console.WriteLine("进入循环");
-                    //int cnt = 0;
-                    DateTime t4 = DateTime.Now;
-                    List<DateTime> t = new List<DateTime>();
+                    InsertedTime = InsertedTime.AddHours(-1);
+
+                    Stopwatch myWatch3 = Stopwatch.StartNew();
                     while (timeCritical < DateTime.Now)
                     {
                         var InsertTime = InsertedTime;
@@ -238,27 +247,28 @@ namespace ZB_MVC.Models.Repository.Implement
 
                         InsertedTime = InsertTime;
                         timeCritical = timeCritical.AddHours(1);
-                        t.Add(timeCritical);
-                        //if(cnt > 5)break;
-                        //cnt++;
                     }
-                    DateTime t5 = DateTime.Now;
-                    cx.SubmitChanges();
-                    cx.Transaction.Commit();
-                    DateTime t6 = DateTime.Now;
-                    //return "ll";
-                    //return t2 +" " + t3;
+                    myWatch3.Stop();
+                    string t3 = myWatch3.ElapsedMilliseconds.ToString();
 
-                    return t1 + " " + t2 + " " + t3 + " " + t4 + " " + t5 + " " + t6 + " " + t[0] + " " + t[1] + " " + t[2] + " " + t[3] + " " + t[4] + "刷新成功~";
+                    Stopwatch myWatch4 = Stopwatch.StartNew();
+                    cx.SubmitChanges();
+                    myWatch4.Stop();
+                    string t4 = myWatch4.ElapsedMilliseconds.ToString();
+
+                    Stopwatch myWatch5 = Stopwatch.StartNew();
+                    cx.Transaction.Commit();
+                    myWatch5.Stop();
+                    string t5 = myWatch5.ElapsedMilliseconds.ToString();
+
+                    return "删除时间：" + t1 + "\n加载数据时间：" + t2 + "\n计算新值时间：" + t3 + "\n提交数据时间：" + t4 + "\n提交事务时间：" + t5 + "\n" + timeCritical + "\n" + startTime + " " + "刷新成功~";
                 }
-                cx.SubmitChanges();
                 cx.Transaction.Commit();
                 return "无子节点";
             }
             catch
             {
                 cx.Transaction.Rollback();
-                cx.Connection.Close();
                 return "回滚成功~";
             }
         }

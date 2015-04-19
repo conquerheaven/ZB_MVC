@@ -47,16 +47,20 @@ namespace ZB_MVC.Models.Repository.Implement
         /// <returns></returns>
         public Boolean AddEnergyHistory(int analogNo, DateTime time, double value)
         {
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
             try
             {
                 var nextTimeVal = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > time).OrderBy(x => x.AH_Time).Select(x => x.AH_Value).FirstOrDefault();
                 var preTimeVal = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time < time).OrderByDescending(x => x.AH_Time).Select(x => x.AH_Value).FirstOrDefault();
                 if (preTimeVal > 0 && value <= preTimeVal)
                 {
+                    cx.Transaction.Commit();
                     return false;
                 }
                 if (nextTimeVal > 0 && value >= nextTimeVal)
                 {
+                    cx.Transaction.Commit();
                     return false;
                 }
                 var newItem = new AnalogHistory
@@ -67,12 +71,15 @@ namespace ZB_MVC.Models.Repository.Implement
                 };
                 cx.AnalogHistories.InsertOnSubmit(newItem);
                 cx.SubmitChanges();
+                cx.Transaction.Commit();
+                return true;
             }
             catch (Exception)
             {
+                cx.Transaction.Rollback();
                 return false;
             }
-            return true;
+
         }
 
         public IQueryable<EnergyEntity> GetEnergyHistory(int analogNo, DateTime startTime, DateTime endTime)
@@ -89,16 +96,37 @@ namespace ZB_MVC.Models.Repository.Implement
             return list;
         }
 
+        /// <summary>
+        /// 批量修改
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <param name="endTime"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         public Boolean ModifyByTimePeriod(int analogNo, DateTime startTime, DateTime endTime, double value)
         {
-            IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time >= startTime && x.AH_Time <= endTime);
-            if (allAIInTimePeriod.Count() == 0) return false;
-            foreach (var item in allAIInTimePeriod)
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
+            try
             {
-                item.AH_Value += value;
+                IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time >= startTime && x.AH_Time <= endTime);
+                if (allAIInTimePeriod.Count() == 0) return false;
+                foreach (var item in allAIInTimePeriod)
+                {
+                    item.AH_Value += value;
+                }
+                cx.SubmitChanges();
+                cx.Transaction.Commit();
+                cx.Connection.Close();
+                return true;
             }
-            cx.SubmitChanges();
-            return true;
+            catch
+            {
+                cx.Transaction.Rollback();
+                cx.Connection.Close();
+                return false;
+            }
         }
 
         public int AICountByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
@@ -107,13 +135,33 @@ namespace ZB_MVC.Models.Repository.Implement
             return aiCount;
         }
 
+        /// <summary>
+        /// 批量删除
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="startTime"></param>
+        /// <param name="endTime"></param>
+        /// <returns></returns>
         public Boolean DeleteByTimePeriod(int analogNo, DateTime startTime, DateTime endTime)
         {
-            IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > startTime && x.AH_Time < endTime);
-            if (allAIInTimePeriod.Count() == 0) return false;
-            cx.AnalogHistories.DeleteAllOnSubmit(allAIInTimePeriod);
-            cx.SubmitChanges();
-            return true;
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
+            try
+            {
+                IQueryable<AnalogHistory> allAIInTimePeriod = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time > startTime && x.AH_Time < endTime);
+                if (allAIInTimePeriod.Count() == 0) return false;
+                cx.AnalogHistories.DeleteAllOnSubmit(allAIInTimePeriod);
+                cx.SubmitChanges();
+                cx.Transaction.Commit();
+                cx.Connection.Close();
+                return true;
+            }
+            catch
+            {
+                cx.Transaction.Rollback();
+                cx.Connection.Close();
+                return false;
+            }
         }
 
         public IDictionary<string, string> GetTwoEndpointValAlt(int analogNo, DateTime inputDateTime)
@@ -141,8 +189,17 @@ namespace ZB_MVC.Models.Repository.Implement
             return dic;
         }
 
+        /// <summary>
+        /// 单点修改
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="time"></param>
+        /// <param name="modifyVal"></param>
+        /// <returns></returns>
         public bool Modify(int analogNo, DateTime time, double modifyVal)
         {
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
             try
             {
                 var item = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time == time).SingleOrDefault();
@@ -150,21 +207,35 @@ namespace ZB_MVC.Models.Repository.Implement
                 {
                     item.AH_Value = modifyVal;
                     cx.SubmitChanges();
+                    cx.Transaction.Commit();
+                    cx.Connection.Close();
+                    return true;
                 }
                 else
                 {
+                    cx.Transaction.Commit();
+                    cx.Connection.Close();
                     return false;
                 }
-                return true;
             }
-            catch (Exception)
+            catch
             {
+                cx.Transaction.Rollback();
+                cx.Connection.Close();
                 return false;
             }
         }
 
+        /// <summary>
+        /// 单点删除
+        /// </summary>
+        /// <param name="analogNo"></param>
+        /// <param name="time"></param>
+        /// <returns></returns>
         public bool Delete(int analogNo, DateTime time)
         {
+            if (cx.Connection.State != System.Data.ConnectionState.Open) cx.Connection.Open();
+            cx.Transaction = cx.Connection.BeginTransaction(System.Data.IsolationLevel.Serializable);
             try
             {
                 var item = cx.AnalogHistories.Where(x => x.AH_AnalogNo == analogNo && x.AH_Time == time).SingleOrDefault();
@@ -172,16 +243,21 @@ namespace ZB_MVC.Models.Repository.Implement
                 {
                     cx.AnalogHistories.DeleteOnSubmit(item);
                     cx.SubmitChanges();
+                    cx.Transaction.Commit();
+                    cx.Connection.Close();
+                    return true;
                 }
                 else
                 {
+                    cx.Transaction.Commit();
+                    cx.Connection.Close();
                     return false;
                 }
-                cx.SubmitChanges();
-                return true;
             }
-            catch (Exception)
+            catch
             {
+                cx.Transaction.Rollback();
+                cx.Connection.Close();
                 return false;
             }
         }

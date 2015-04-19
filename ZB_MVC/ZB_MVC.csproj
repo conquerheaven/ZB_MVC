@@ -74,6 +74,7 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>DB_MVC.dbml</DependentUpon>
     </Compile>
+    <Compile Include="Models\Repository\Entity\AHTVEntity.cs" />
     <Compile Include="Models\Repository\Entity\AMPExtEntity.cs" />
     <Compile Include="Models\Repository\Entity\EnergyEntity.cs" />
     <Compile Include="Models\Repository\Implement\AMPRepos.cs" />

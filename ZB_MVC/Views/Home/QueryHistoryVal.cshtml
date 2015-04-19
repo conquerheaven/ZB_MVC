@@ -99,6 +99,7 @@
                     <li>
                         <div id="displayType">
                             <input type="radio" id="column" name="displayRadio" value="column" checked="checked" /><label for="column"> 柱状图 </label>
+                            <input type="radio" id="line" name="displayRadio" value="line" /><label for="line"> 折线图 </label>
                             <input type="radio" id="list" name="displayRadio" value="list" /><label for="list"> 一览表 </label>
                         </div>
                     </li>
@@ -111,7 +112,7 @@
                     {
                         <fieldset id="isModified" class="hidden" style="width:160%">
                         <legend class="red">特别提醒</legend>
-                        <p class="red"> 您修改、删除或添加了数据，请在离开本页面前<strong><a href="javascript:void(0)">点击刷新</a></strong>父测点数据！<strong><a onclick="ShowLog()" href="javascript:void(0)">查看修改日志</a></strong></p>
+                        <p class="red"> 您修改、删除或添加了数据，请在离开本页面前<strong><a onclick="updateDataValue(@ViewData["parentNo"])" href="javascript:void(0)">点击刷新</a></strong>父测点数据！<strong><a onclick="ShowLog()" href="javascript:void(0)">查看修改日志</a></strong></p>
                         </fieldset>
                     }
                     else
@@ -187,13 +188,13 @@
     ///////////****************************/////////////////////////////////
     var isModified = false; //******************************测点数值是否发生改变
     var minTime = getCurrentTime(new Date()); ///************保存被修改的最早的实践点****************/////////////////////
-    var logMeg = "";//////////////保存修改日志信息//////////////
+    var logMeg = ""; //////////////保存修改日志信息//////////////
     window.onbeforeunload = function () {
-        if(isModified) return "您还未刷新父测点数据，确定离开此页面吗？";
+        if (isModified) return "您还未刷新父测点数据，确定离开此页面吗？";
     }
     function getCurrentTime(date) {//获取当前时间yy-mm-dd hh:mm
         var year = date.getFullYear();
-        var month = date.getMonth()+1;
+        var month = date.getMonth() + 1;
         var day = date.getDate();
         var hour = date.getHours();
         var minute = date.getMinutes();
@@ -209,18 +210,18 @@
         return current;
     }
     function Wait() {
-         $("#topDiv").width(document.body.clientWidth);
-         $("#topDiv").height(document.body.clientHeight);
-         var loadingLeft = document.body.clientWidth / 2;
-         var loadingTop = document.body.clientHeight / 2;
-         $("#loadingDiv").css({ 'left': loadingLeft, 'top': loadingTop });
-         $("#topDiv").show();
+        $("#topDiv").width(document.body.clientWidth);
+        $("#topDiv").height(document.body.clientHeight);
+        var loadingLeft = document.body.clientWidth / 2;
+        var loadingTop = document.body.clientHeight / 2;
+        $("#loadingDiv").css({ 'left': loadingLeft, 'top': loadingTop });
+        $("#topDiv").show();
     }
     function AddLog(message) {
-        logMeg += ">"+message+"<br /><br />";
+        logMeg += ">" + message + "<br /><br />";
     }
     function ShowLog() {
-        $("#LOG").html('<fieldset>'+logMeg+'</fieldset>').dialog({
+        $("#LOG").html('<fieldset>' + logMeg + '</fieldset>').dialog({
             modal: true,
             width: 650,
             resizable: false,
@@ -295,7 +296,7 @@
                         pageClick(1);
                     }
                     else {
-                        query();
+                        query(displayType);
                     }
                 }
                 return false;
@@ -344,7 +345,7 @@
         }
         ////////////////////////////柱状图////////////////////////////////////
         var statisChart = new Visifire("../../Content/sl/SL.Visifire.Charts.xap", "StatisticsChart", 700, 500, "White");
-        function query() {
+        function query(displayType) {
             var loadingImg = $('<img src="@Url.Content("~/Content/themes/img/loading_mid.gif")" title="Loading" width="100" />');
             $("#dataDiv").hide();
             $("#chartDataDiv").hide();
@@ -365,7 +366,11 @@
                     $("#dataDiv").hide();
                     return;
                 }
-                var xmlStr = util_templateToChartXml("chartTemplate", jsonData);
+                var extendObj = {
+                    renderType: displayType
+                };
+                var chartData = $.extend(jsonData, extendObj);
+                var xmlStr = util_templateToChartXml("chartTemplate", chartData);
                 statisChart.setDataXml(xmlStr);
                 $("#dataDiv").hide();
                 $("#noDataDiv").hide();
@@ -744,6 +749,27 @@
             });
         }
     }
+    ///////////////////////////刷新数据//////////////////////////
+    function updateDataValue(pointID) {
+        if (confirm("更新虚拟测点的历史值可能需要数分钟时间，请耐心等待，这段时间内请不要进行其他操作！")) {
+            $("#refreshDiv").dialog("close");
+            Wait();
+            $.getJSON('@Url.Action("UpdateHistoryValue", "Home")', {
+                analogNo: pointID,
+                startTime: minTime
+            }, function (jsonData) {
+                $("#topDiv").hide();
+                if (jsonData.ifSucceed == true) {
+                    alert(jsonData.result);
+                    isModified = false;
+                    minTime = getCurrentTime();
+                    $("#isModified").slideUp();
+                } else {
+                    alert(jsonData.result);
+                }
+            });
+        }
+    }
 </script>
 <script id="dataTemplate" type="text/x-jQuery-tmpl">
     <tr class="${$item.alternate($data)}"><td>${Time}</td><td>${ValStr}</td>
@@ -757,20 +783,23 @@
         <vc:Chart.Titles>
             <vc:Title Text="测点历史值" Padding="0,0,0,5"/>
         </vc:Chart.Titles>
+
         <vc:Chart.AxesX>
             <vc:Axis Title="时间"/>
         </vc:Chart.AxesX>
         <vc:Chart.AxesY>
             <vc:Axis StartFromZero="False" Title="表值"/>
         </vc:Chart.AxesY>
+
         <vc:Chart.Series>
-        <vc:DataSeries RenderAs="Column">
+        <vc:DataSeries RenderAs="${renderType}">
             <vc:DataSeries.DataPoints>
                 {{each data}}
                     <vc:DataPoint AxisXLabel="${Time}" YValue="${ValStr}"/>
                 {{/each}}
             </vc:DataSeries.DataPoints>
         </vc:DataSeries>
+
         </vc:Chart.Series>
     </vc:Chart>
 </script>
